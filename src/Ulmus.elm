@@ -1,85 +1,13 @@
 module Ulmus exposing (..)
 
 import Dict exposing (Dict)
+import Ulmus.AST exposing (AST(..), Atom(..), equal, show, toList)
+import Ulmus.BuildIn exposing (buildIn)
 import Utils
-
-
-type AST
-    = Sybl Atom
-    | Quote AST
-    | Pair AST AST
-    | Lambda AST AST
-    | Let AST (List AST)
-
-
-type Atom
-    = NIL
-    | T
-    | Num Float
-    | Str String
-    | Label String
 
 
 type alias Ctx =
     Dict String AST
-
-
-show : AST -> String
-show cell =
-    case cell of
-        Sybl NIL ->
-            "()"
-
-        Sybl T ->
-            "t"
-
-        Sybl (Num n) ->
-            String.fromFloat n
-
-        Sybl (Str str) ->
-            "\"" ++ str ++ "\""
-
-        Sybl (Label str) ->
-            String.toUpper str
-
-        Pair c1 c2 ->
-            "(" ++ show c1 ++ " " ++ show c2 ++ ")"
-
-        Lambda args body ->
-            "lambda " ++ show args ++ " " ++ show body
-
-        Quote ast ->
-            "'" ++ show ast
-
-        Let vars body ->
-            "let" ++ show vars ++ (body |> List.map show |> String.join " ")
-
-
-equal : AST -> AST -> Bool
-equal c1 c2 =
-    case ( c1, c2 ) of
-        ( Sybl atom1, Sybl atom2 ) ->
-            atom1 == atom2
-
-        _ ->
-            False
-
-
-list_ : List AST -> AST
-list_ =
-    List.foldr
-        (\x acc -> Pair x acc)
-        (Sybl NIL)
-
-
-toList : AST -> List AST
-toList ast =
-    case ast of
-        Pair f s ->
-            f :: toList s
-
-        _ ->
-            []
 
 
 car_ : AST -> Maybe AST
@@ -163,6 +91,9 @@ eval_ ctx e =
         Let _ _ ->
             Err "LET has no value"
 
+        If _ _ _ ->
+            Err "IF has no value"
+
         Pair head tail ->
             evalPair ctx head tail
 
@@ -179,15 +110,14 @@ evalPair ctx fst snd =
                     eval_ ctx snd
                         |> Result.andThen
                             (\( x, ctx_ ) ->
-                                buildin ctx_ (String.toUpper name) x
+                                buildin (String.toUpper name) x
+                                    |> Result.map (\x_ -> ( x_, ctx_ ))
                             )
 
         Lambda args body ->
             eval_ ctx snd
                 |> Result.andThen
-                    (\( x, ctx_ ) ->
-                        lambda ctx_ args body x
-                    )
+                    (\( x, ctx_ ) -> apply ctx_ args body x)
                 |> Result.map
                     (Tuple.mapSecond (always ctx))
 
@@ -198,6 +128,17 @@ evalPair ctx fst snd =
                         body
                             |> List.map (eval_ c)
                             |> List.foldl (\x acc -> Result.andThen (always x) acc) (Ok ( Sybl NIL, c ))
+                    )
+
+        If cond t f ->
+            eval_ ctx cond
+                |> Result.andThen
+                    (\( cond_, _ ) ->
+                        if equal (Sybl NIL) cond_ then
+                            eval_ ctx f
+
+                        else
+                            eval_ ctx t
                     )
 
         _ ->
@@ -227,10 +168,17 @@ bind ctx key val =
             Err "err"
 
 
-lambda : Ctx -> AST -> AST -> AST -> Result String ( AST, Ctx )
-lambda ctx args body vals =
-    if isList args && isList vals && len_ args == len_ vals then
-        List.map2 Tuple.pair (toList args) (toList vals)
+apply : Ctx -> AST -> AST -> AST -> Result String ( AST, Ctx )
+apply ctx args body vals =
+    let
+        argsList =
+            toList args
+
+        valsList =
+            toList vals
+    in
+    if List.length argsList == List.length valsList then
+        List.map2 Tuple.pair argsList valsList
             |> List.foldl
                 (\( k, v ) acc ->
                     Result.andThen
@@ -266,9 +214,9 @@ let_ ctx vars =
             Err "err"
 
 
-buildin : Ctx -> String -> AST -> Result String ( AST, Ctx )
-buildin ctx name args =
-    (case name of
+buildin : String -> AST -> Result String AST
+buildin name args =
+    case name of
         "CAR" ->
             car args
 
@@ -278,47 +226,49 @@ buildin ctx name args =
         "CONS" ->
             cons args
 
-        "EQ" ->
-            eq args
-
         "NOT" ->
             not args
 
+        "EQ" ->
+            eq args
+
         "LIST" ->
-            list ctx args
+            list args
+
+        "+" ->
+            add args
+
+        "-" ->
+            sub args
+
+        "*" ->
+            mul args
+
+        "/" ->
+            div args
 
         _ ->
             Err (name ++ " is not found")
-    )
-        |> Result.map (\x -> ( x, ctx ))
 
 
 car : AST -> Result String AST
 car args =
-    if len_ args == 1 then
-        case car_ args of
-            Just (Pair f _) ->
-                Ok f
+    case args of
+        Pair (Pair a _) _ ->
+            Ok a
 
-            _ ->
-                Err ("Error: " ++ show args ++ " is not a list")
-
-    else
-        Err "Error: CAR take just 1 argument"
+        _ ->
+            Err ("Error: " ++ show args ++ " is not a list")
 
 
 cdr : AST -> Result String AST
 cdr args =
-    if len_ args == 1 then
-        case car_ args of
-            Just (Pair _ s) ->
-                Ok s
+    case args of
+        Pair (Pair _ a) _ ->
+            Ok a
 
-            _ ->
-                Err ("Error: " ++ show args ++ " is not a list")
-
-    else
-        Err "Error: CDR take just 1 argument"
+        _ ->
+            Err ("Error: " ++ show args ++ " is not a list")
 
 
 cons : AST -> Result String AST
@@ -358,20 +308,40 @@ not : AST -> Result String AST
 not args =
     if len_ args == 1 then
         case car_ args of
-            Just (Sybl NIL) ->
-                Ok <| Sybl T
+            Just v ->
+                if equal v (Sybl NIL) then
+                    Ok <| Sybl T
 
-            Just _ ->
-                Ok <| Sybl NIL
+                else
+                    Ok <| Sybl NIL
 
-            _ ->
+            Nothing ->
                 Err "err"
 
     else
         Err "err"
 
 
-list : Ctx -> AST -> Result String AST
-list ctx args =
-    eval_ ctx args
-        |> Result.map Tuple.first
+list : AST -> Result String AST
+list args =
+    Ok args
+
+
+add : AST -> Result String AST
+add args =
+    Debug.todo "impl add"
+
+
+mul : AST -> Result String AST
+mul args =
+    Debug.todo "impl mul"
+
+
+sub : AST -> Result String AST
+sub args =
+    Debug.todo "impl sub"
+
+
+div : AST -> Result String AST
+div args =
+    Debug.todo "impl div"

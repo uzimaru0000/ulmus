@@ -3,6 +3,7 @@ module UlmusTest exposing (..)
 import Expect
 import Test exposing (..)
 import Ulmus exposing (..)
+import Ulmus.AST exposing (..)
 
 
 testShow : Test
@@ -58,6 +59,34 @@ testListHelper =
                             )
                         )
                     )
+        , test "(cdr (cons 1 2))" <|
+            \_ ->
+                Expect.equal
+                    (list_
+                        [ Sybl <| Label "cdr"
+                        , list_
+                            [ Sybl <| Label "cons"
+                            , Sybl <| Num 1
+                            , Sybl <| Num 2
+                            ]
+                        ]
+                    )
+                    (Pair
+                        (Sybl <| Label "cdr")
+                        (Pair
+                            (Pair
+                                (Sybl <| Label "cons")
+                                (Pair
+                                    (Sybl <| Num 1)
+                                    (Pair
+                                        (Sybl <| Num 2)
+                                        (Sybl NIL)
+                                    )
+                                )
+                            )
+                            (Sybl NIL)
+                        )
+                    )
         ]
     
 
@@ -85,6 +114,29 @@ testListLen =
                     0
         ]
 
+
+testBuildIn : Test
+testBuildIn =
+    describe "build in"
+        [ test "cons" <|
+            \_ ->
+                Expect.equal
+                    (cons <|
+                        list_
+                            [ Sybl <| Num 1
+                            , Sybl <| Num 2
+                            ]
+                    )
+                    (Ok <|
+                        Pair ( Sybl <| Num 1 ) ( Sybl <| Num 2 )
+                    )
+        , test "car" <|
+            \_ ->
+                Expect.equal
+                    (car <| list_ [ Pair ( Sybl <| Num 1 ) ( Sybl <| Num 2 ) ])
+                    (Ok (Sybl <| Num 1))
+        ]
+
     
 testEval : Test
 testEval =
@@ -109,25 +161,11 @@ testEval =
                 Expect.equal
                     (eval (Sybl <| Str "a"))
                     (Ok <| Sybl <| Str "a")
-        , test "(T . NIL)" <|
+        , test "'(T . NIL)" <|
             \_ ->
                 Expect.equal
-                    (eval (Pair (Sybl T) (Sybl NIL)))
+                    (eval (Quote <| Pair (Sybl T) (Sybl NIL)))
                     (Ok <| Pair (Sybl T) (Sybl NIL))
-        , test "((1 . 2) (3 . 4))" <|
-            \_ ->
-                Expect.equal
-                    (eval
-                        (Pair
-                            (Pair (Sybl <| Num 1) (Sybl <| Num 2))
-                            (Pair (Sybl <| Num 3) (Sybl <| Num 4))
-                        )
-                    )
-                    (Ok <|
-                        Pair
-                            (Pair (Sybl <| Num 1) (Sybl <| Num 2))
-                            (Pair (Sybl <| Num 3) (Sybl <| Num 4))
-                    )
         , test "(lambda (x) (x))" <|
             \_ ->
                 Expect.equal
@@ -142,13 +180,28 @@ testEval =
                             (list_ [ Sybl <| Label "x" ])
                             (list_ [ Sybl <| Label "x" ])
                     )
+        , test "(cons 1 2) -> (1 . 2)" <|
+            \_ ->
+                Expect.equal
+                    (eval <|
+                        list_
+                            [ Sybl <| Label "cons"
+                            , Sybl <| Num 1
+                            , Sybl <| Num 2
+                            ]
+                    )
+                    (Ok (Pair (Sybl <| Num 1) (Sybl <| Num 2)))
         , test "(car (cons 1 2)) -> 1" <|
             \_ ->
                 Expect.equal
                     (eval 
                         (list_
                             [ Sybl <| Label "car"
-                            , Pair (Sybl <| Num 1) (Sybl <| Num 2)
+                            , list_
+                                [ Sybl <| Label "cons"
+                                , Sybl <| Num 1
+                                , Sybl <| Num 2
+                                ]
                             ]
                         )
                     )
@@ -157,13 +210,39 @@ testEval =
             \_ ->
                 Expect.equal
                     (eval 
-                        (list_
-                            [ Sybl <| Label "cdr"
-                            , Pair (Sybl <| Num 1) (Sybl <| Num 2)
-                            ]
+                        (Pair
+                            (Sybl <| Label "cdr")
+                            (Pair
+                                (Pair
+                                    (Sybl <| Label "cons")
+                                    (Pair
+                                        (Sybl <| Num 1)
+                                        (Pair
+                                            (Sybl <| Num 2)
+                                            (Sybl NIL)
+                                        )
+                                    )
+                                )
+                                (Sybl NIL)
+                            )
                         )
                     )
                     (Ok (Sybl <| Num 2))
+        , test "(car '(1 2 3)) -> 1" <|
+            \_ ->
+                Expect.equal
+                    (eval
+                        (list_
+                            [ Sybl <| Label "car"
+                            , list_
+                                [ Sybl <| Num 1 
+                                , Sybl <| Num 2
+                                , Sybl <| Num 3
+                                ]
+                            ]
+                        )
+                    )
+                    (Ok (Sybl <| Num 1))
         , test "(cdr '(1 2 3)) -> (2 3)" <|
             \_ ->
                 Expect.equal
@@ -185,18 +264,6 @@ testEval =
                             ]
                         )
                     )
-        , test "(cons 1 2) -> (1 . 2)" <|
-            \_ ->
-                Expect.equal
-                    (eval
-                        (list_
-                            [ Sybl <| Label "cons"
-                            , Sybl <| Num 1
-                            , Sybl <| Num 2
-                            ]
-                        )
-                    )
-                    (Ok (Pair (Sybl <| Num 1) (Sybl <| Num 2)))
         , test "(cons 1 2 3) -> Err" <|
             \_ ->
                 Expect.err
@@ -244,67 +311,6 @@ testEval =
                             , Sybl <| Num 3
                             ]
                         )
-                    )
-        , test "(not t) -> nil" <|
-            \_ ->
-                Expect.equal
-                    (eval
-                        (list_
-                            [ Sybl <| Label "not"
-                            , Sybl T
-                            ]
-                        )
-                    )
-                    (Ok <| Sybl NIL)
-        , test "(not nil) -> t" <|
-            \_ ->
-                Expect.equal
-                    (eval
-                        (list_
-                            [ Sybl <| Label "not"
-                            , Sybl NIL
-                            ]
-                        )
-                    )
-                    (Ok <| Sybl T)
-        , test "(not 1) -> nil" <|
-            \_ ->
-                Expect.equal
-                    (eval
-                        (list_
-                            [ Sybl <| Label "not"
-                            , Sybl <| Num 1
-                            ]
-                        )
-                    )
-                    (Ok <| Sybl NIL)
-        , test "(not 1 2) -> Err" <|
-            \_ ->
-                Expect.err
-                    (eval
-                        (list_
-                            [ Sybl <| Label "not"
-                            , Sybl <| Num 1
-                            , Sybl <| Num 2
-                            ]
-                        )
-                    )
-        , test "(list 1 2) -> (1 2)" <|
-            \_ ->
-                Expect.equal
-                    (eval
-                        (list_
-                            [ Sybl <| Label "list"
-                            , Sybl <| Num 1
-                            , Sybl <| Num 2
-                            ]
-                        )
-                    )
-                    (Ok <|
-                        list_
-                            [ Sybl <| Num 1
-                            , Sybl <| Num 2
-                            ]
                     )
         ]
 
@@ -529,4 +535,27 @@ testLet =
                 Expect.equal
                     (eval e)
                     (Ok <| Pair (Sybl <| Num 10) (Sybl <| Num 10))
+        ]
+
+
+testIf : Test
+testIf =
+    describe "if"
+        [ test "(if (eq 1 2) (1) (2)) -> " <|
+            \_ ->
+                Expect.equal
+                    (eval <|
+                        list_
+                            [ If
+                                (list_
+                                    [ Sybl <| Label "eq"
+                                    , Sybl <| Num 1
+                                    , Sybl <| Num 2
+                                    ]
+                                )
+                                (Sybl <| Num 1)
+                                (Sybl <| Num 2)
+                            ]
+                    )
+                    (Ok (Sybl <| Num 2))
         ]
