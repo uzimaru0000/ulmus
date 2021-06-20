@@ -3,24 +3,62 @@ module Ulmus.BuildIn exposing (..)
 import Ulmus.AST exposing (..)
 
 
-buildIn : List (String, AST)
+buildIn : List AST
 buildIn =
-    [ ("not", not)
-    , ("null", not)
+    [ fold
     ]
 
 
-not : AST
-not =
-    Lambda
+fold : AST
+fold =
+    Define
+        (Sybl <| Label "fold")
         (list_
-            [ Sybl <| Label "x" ]
+            [ Sybl <| Label "f"
+            , Sybl <| Label "init"
+            , Sybl <| Label "list"
+            ]
         )
         (list_
             [ If
-                (Sybl <| Label "x")
-                (Sybl NIL)
-                (Sybl T)
+                (list_
+                    [ Sybl <| Label "eq"
+                    , Sybl <| Label "list"
+                    , Sybl NIL
+                    ]
+                )
+                (Sybl <| Label "init")
+                (list_
+                    [ Let
+                        (list_
+                            [ list_
+                                [ Sybl <| Label "head"
+                                , list_
+                                    [ Sybl <| Label "car"
+                                    , Sybl <| Label "list"
+                                    ]
+                                ]
+                            , list_
+                                [ Sybl <| Label "tail"
+                                , list_
+                                    [ Sybl <| Label "cdr"
+                                    , Sybl <| Label "list"
+                                    ]
+                                ]
+                            ]
+                        )
+                        [ list_
+                            [ Sybl <| Label "fold"
+                            , Sybl <| Label "f"
+                            , list_
+                                [ Sybl <| Label "f"
+                                , Sybl <| Label "init"
+                                , Sybl <| Label "head"
+                                ]
+                            , Sybl <| Label "tail"
+                            ]
+                        ]
+                    ]
+                )
             ]
         )
-
