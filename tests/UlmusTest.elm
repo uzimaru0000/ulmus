@@ -35,7 +35,7 @@ testShow =
                     (show <| Pair (Sybl <| Str "a") (Sybl NIL))
                     "(\"a\" ())"
         ]
-    
+
 
 testListHelper : Test
 testListHelper =
@@ -88,7 +88,7 @@ testListHelper =
                         )
                     )
         ]
-    
+
 
 testListLen : Test
 testListLen =
@@ -128,16 +128,16 @@ testBuildIn =
                             ]
                     )
                     (Ok <|
-                        Pair ( Sybl <| Num 1 ) ( Sybl <| Num 2 )
+                        Pair (Sybl <| Num 1) (Sybl <| Num 2)
                     )
         , test "car" <|
             \_ ->
                 Expect.equal
-                    (car <| list_ [ Pair ( Sybl <| Num 1 ) ( Sybl <| Num 2 ) ])
+                    (car <| list_ [ Pair (Sybl <| Num 1) (Sybl <| Num 2) ])
                     (Ok (Sybl <| Num 1))
         ]
 
-    
+
 testEval : Test
 testEval =
     describe "eval test"
@@ -213,7 +213,7 @@ testEval =
         , test "(car (cons 1 2)) -> 1" <|
             \_ ->
                 Expect.equal
-                    (eval 
+                    (eval
                         (list_
                             [ Sybl <| Label "car"
                             , list_
@@ -228,7 +228,7 @@ testEval =
         , test "(cdr (cons 1 2)) -> 2" <|
             \_ ->
                 Expect.equal
-                    (eval 
+                    (eval
                         (Pair
                             (Sybl <| Label "cdr")
                             (Pair
@@ -254,7 +254,7 @@ testEval =
                         (list_
                             [ Sybl <| Label "car"
                             , list_
-                                [ Sybl <| Num 1 
+                                [ Sybl <| Num 1
                                 , Sybl <| Num 2
                                 , Sybl <| Num 3
                                 ]
@@ -269,7 +269,7 @@ testEval =
                         (list_
                             [ Sybl <| Label "cdr"
                             , list_
-                                [ Sybl <| Num 1 
+                                [ Sybl <| Num 1
                                 , Sybl <| Num 2
                                 , Sybl <| Num 3
                                 ]
@@ -363,12 +363,11 @@ complex =
                             [ Lambda
                                 (list_ [ Sybl <| Label "x" ])
                                 (Sybl <| Label "x")
-                            , Sybl <| Num 10 
+                            , Sybl <| Num 10
                             ]
                         )
                     )
-                    (Ok (Sybl <| Num 10)
-                    )
+                    (Ok (Sybl <| Num 10))
         , test "((lambda (x) (car (cdr x))) '(abc def ghi)) -> \"def\"" <|
             \_ ->
                 Expect.equal
@@ -430,6 +429,7 @@ complex =
                     )
         ]
 
+
 testLet : Test
 testLet =
     describe "test let" <|
@@ -446,7 +446,7 @@ testLet =
                                         ]
                                     ]
                                 )
-                                [Sybl <| Label "x"]
+                                [ Sybl <| Label "x" ]
                             ]
                     )
                     (Ok (Sybl <| Num 1))
@@ -463,7 +463,7 @@ testLet =
                                         ]
                                     ]
                                 )
-                                [list_
+                                [ list_
                                     [ Let
                                         (list_
                                             [ list_
@@ -472,7 +472,7 @@ testLet =
                                                 ]
                                             ]
                                         )
-                                        [list_
+                                        [ list_
                                             [ Sybl <| Label "cons"
                                             , Sybl <| Label "x"
                                             , Sybl <| Label "y"
@@ -533,7 +533,7 @@ testLet =
                 in
                 Expect.equal
                     (eval e)
-                    (Ok <| Pair (Sybl <| Num 1) (Sybl <| Num 10)) 
+                    (Ok <| Pair (Sybl <| Num 1) (Sybl <| Num 10))
         , test "レキシカルスコープ" <|
             \_ ->
                 let
@@ -644,6 +644,7 @@ testAdd =
                     (Ok (Sybl <| Num 0))
         ]
 
+
 testMul : Test
 testMul =
     describe "*"
@@ -693,6 +694,7 @@ testMul =
                     (Ok (Sybl <| Num 1))
         ]
 
+
 testSub : Test
 testSub =
     describe "-"
@@ -707,7 +709,7 @@ testSub =
                             ]
                     )
                     (Ok (Sybl <| Num -1))
-         , test "(- 1 2 3 4 5) -> -13" <|
+        , test "(- 1 2 3 4 5) -> -13" <|
             \_ ->
                 Expect.equal
                     (eval <|
@@ -741,6 +743,7 @@ testSub =
                     )
         ]
 
+
 testDiv : Test
 testDiv =
     describe "/"
@@ -755,7 +758,7 @@ testDiv =
                             ]
                     )
                     (Ok (Sybl <| Num 0.5))
-         , test "(/ 1 2 3 4 5) -> 0.008333333" <|
+        , test "(/ 1 2 3 4 5) -> 0.008333333" <|
             \_ ->
                 Expect.equal
                     (eval <|
@@ -998,10 +1001,12 @@ testComp =
                     )
         ]
 
+
 testRecursive : Test
 testRecursive =
     let
-        fact n = list_
+        fact n =
+            list_
                 [ Let
                     (list_
                         [ list_
@@ -1059,14 +1064,15 @@ testRecursive =
                     (eval <| fact 3)
                     (Ok (Sybl <| Num 6))
         ]
-            
+
+
 testLogicFunc : Test
 testLogicFunc =
     describe "logic functions"
         [ test "(or 1 2) -> 2" <|
             \_ ->
                 Expect.equal
-                    (eval  <|
+                    (eval <|
                         list_
                             [ Sybl <| Label "or"
                             , Sybl <| Num 1
@@ -1077,7 +1083,7 @@ testLogicFunc =
         , test "(or) -> NIL" <|
             \_ ->
                 Expect.equal
-                    (eval  <|
+                    (eval <|
                         list_
                             [ Sybl <| Label "or" ]
                     )
@@ -1115,7 +1121,7 @@ testLogicFunc =
         , test "(and 1 NIL 2) -> NIL" <|
             \_ ->
                 Expect.equal
-                    (eval  <|
+                    (eval <|
                         list_
                             [ Sybl <| Label "and"
                             , Sybl <| Num 1
@@ -1127,7 +1133,7 @@ testLogicFunc =
         , test "(and 1 2 3) -> 3" <|
             \_ ->
                 Expect.equal
-                    (eval  <|
+                    (eval <|
                         list_
                             [ Sybl <| Label "and"
                             , Sybl <| Num 1
@@ -1139,7 +1145,7 @@ testLogicFunc =
         , test "(and T (+ 1 2)) -> 3" <|
             \_ ->
                 Expect.equal
-                    (eval  <|
+                    (eval <|
                         list_
                             [ Sybl <| Label "and"
                             , Sybl T
@@ -1154,7 +1160,7 @@ testLogicFunc =
         , test "(and NIL (hoge 1 2)) -> 3" <|
             \_ ->
                 Expect.equal
-                    (eval  <|
+                    (eval <|
                         list_
                             [ Sybl <| Label "and"
                             , Sybl NIL
@@ -1169,7 +1175,7 @@ testLogicFunc =
         , test "(and) -> T" <|
             \_ ->
                 Expect.equal
-                    (eval  <|
+                    (eval <|
                         list_
                             [ Sybl <| Label "and" ]
                     )
@@ -1196,7 +1202,7 @@ testDefine =
                             , Sybl <| Num 1
                             ]
                         ]
-                        |> Result.map (Tuple.first)
+                        |> Result.map Tuple.first
                     )
                     (Ok (Sybl <| Num 1))
         , test "define fact func" <|
@@ -1237,7 +1243,7 @@ testDefine =
                             , Sybl <| Num 5
                             ]
                         ]
-                        |> Result.map (Tuple.first)
+                        |> Result.map Tuple.first
                     )
                     (Ok (Sybl <| Num 120))
         ]
@@ -1256,7 +1262,7 @@ testCond =
                                     [ list_
                                         [ Sybl <| Label "eq"
                                         , list_
-                                            [ Sybl <| Label "mod" 
+                                            [ Sybl <| Label "mod"
                                             , Sybl <| Num 4
                                             , Sybl <| Num 15
                                             ]
@@ -1268,7 +1274,7 @@ testCond =
                                     [ list_
                                         [ Sybl <| Label "eq"
                                         , list_
-                                            [ Sybl <| Label "mod" 
+                                            [ Sybl <| Label "mod"
                                             , Sybl <| Num 4
                                             , Sybl <| Num 3
                                             ]
@@ -1280,7 +1286,7 @@ testCond =
                                     [ list_
                                         [ Sybl <| Label "eq"
                                         , list_
-                                            [ Sybl <| Label "mod" 
+                                            [ Sybl <| Label "mod"
                                             , Sybl <| Num 4
                                             , Sybl <| Num 5
                                             ]
@@ -1294,4 +1300,3 @@ testCond =
                     )
                     (Ok (Sybl <| Num 4))
         ]
-
