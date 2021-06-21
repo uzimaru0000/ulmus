@@ -8,6 +8,8 @@ type AST
     | Lambda AST AST
     | Let AST (List AST)
     | If AST AST AST
+    | Define AST AST AST
+    | Cond (List AST) AST
 
 
 type Atom
@@ -50,6 +52,45 @@ show cell =
 
         If cond t f ->
             "if" ++ " " ++ show cond ++ " " ++ show t ++ " " ++ show f
+
+        Define name args body ->
+            "define " ++ show name ++ " " ++ show args ++ " " ++ show body
+
+        Cond branch else_ ->
+            "cond " ++ (List.map show branch |> String.join " ") ++ show else_
+
+
+car_ : AST -> Maybe AST
+car_ a =
+    case a of
+        Pair f _ ->
+            Just f
+
+        _ ->
+            Nothing
+
+
+cdr_ : AST -> Maybe AST
+cdr_ a =
+    case a of
+        Pair _ s ->
+            Just s
+
+        _ ->
+            Nothing
+
+
+len_ : AST -> Int
+len_ ast =
+    case ast of
+        Pair _ s ->
+            1 + len_ s
+
+        Sybl NIL ->
+            0
+
+        _ ->
+            1
 
 
 list_ : List AST -> AST

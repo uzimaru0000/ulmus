@@ -1,7 +1,7 @@
 module Ulmus exposing (..)
 
 import Dict exposing (Dict)
-import Ulmus.AST exposing (AST(..), Atom(..), equal, show, toList)
+import Ulmus.AST exposing (AST(..), Atom(..), car_, cdr_, equal, len_, list_, show, toList)
 import Ulmus.BuildIn exposing (buildIn)
 import Utils
 
@@ -10,56 +10,24 @@ type alias Ctx =
     Dict String AST
 
 
-car_ : AST -> Maybe AST
-car_ a =
-    case a of
-        Pair f _ ->
-            Just f
-
-        _ ->
-            Nothing
-
-
-cdr_ : AST -> Maybe AST
-cdr_ a =
-    case a of
-        Pair _ s ->
-            Just s
-
-        _ ->
-            Nothing
-
-
-len_ : AST -> Int
-len_ ast =
-    case ast of
-        Pair _ s ->
-            1 + len_ s
-
-        Sybl NIL ->
-            0
-
-        _ ->
-            1
-
-
-isList : AST -> Bool
-isList ast =
-    case ast of
-        Sybl NIL ->
-            True
-
-        Pair _ s ->
-            True && isList s
-
-        _ ->
-            False
-
-
-eval : AST -> Result String AST
-eval e =
-    eval_ (Dict.fromList []) e
+eval : Ctx -> AST -> Result String AST
+eval ctx e =
+    evalAll ctx buildIn
+        |> Result.map Tuple.second
+        |> Result.andThen (\ctx_ -> eval_ ctx_ e)
         |> Result.map Tuple.first
+
+
+evalAll : Ctx -> List AST -> Result String ( AST, Ctx )
+evalAll ctx e =
+    e
+        |> List.foldl
+            (\x acc ->
+                acc
+                    |> Result.map Tuple.second
+                    |> Result.andThen (\ctx_ -> eval_ ctx_ x)
+            )
+            (Ok ( Sybl NIL, ctx ))
 
 
 eval_ : Ctx -> AST -> Result String ( AST, Ctx )
@@ -78,21 +46,28 @@ eval_ ctx e =
             Ok ( Sybl (Str s), ctx )
 
         Sybl (Label l) ->
-            Dict.get l ctx
+            ctx
+                |> Dict.get l
                 |> Maybe.map (\x -> ( x, ctx ))
                 |> Result.fromMaybe (l ++ " is undefined")
 
         Quote ast ->
             Ok ( ast, ctx )
 
-        Lambda args body ->
-            Ok ( Lambda args body, ctx )
+        Lambda _ _ ->
+            Ok ( e, ctx )
 
         Let _ _ ->
             Err "LET has no value"
 
         If _ _ _ ->
             Err "IF has no value"
+
+        Cond _ _ ->
+            Err "COND has no value"
+
+        Define name args body ->
+            define ctx name args body
 
         Pair head tail ->
             evalPair ctx head tail
@@ -106,32 +81,30 @@ evalPair ctx fst snd =
                 Ok ( x, ctx_ ) ->
                     eval_ ctx_ (Pair x snd)
 
-                _ ->
-                    eval_ ctx snd
-                        |> Result.andThen
-                            (\( x, ctx_ ) ->
-                                buildin (String.toUpper name) x
-                                    |> Result.map (\x_ -> ( x_, ctx_ ))
-                            )
+                Err _ ->
+                    case specialForm (String.toUpper name) ctx snd of
+                        Ok res ->
+                            Ok res
+
+                        Err _ ->
+                            eval_ ctx snd
+                                |> Result.andThen
+                                    (\( x, ctx_ ) ->
+                                        buildin (String.toUpper name) x
+                                            |> Result.map (\x_ -> ( x_, ctx_ ))
+                                    )
 
         Lambda args body ->
-            eval_ ctx snd
-                |> Result.andThen
-                    (\( x, ctx_ ) -> apply ctx_ args body x)
-                |> Result.map
-                    (Tuple.mapSecond (always ctx))
+            apply ctx args body snd
+                |> Result.map (Tuple.mapSecond (always ctx))
 
         Let vars body ->
             let_ ctx vars
-                |> Result.andThen
-                    (\c ->
-                        body
-                            |> List.map (eval_ c)
-                            |> List.foldl (\x acc -> Result.andThen (always x) acc) (Ok ( Sybl NIL, c ))
-                    )
+                |> Result.andThen (\c -> letEval c body)
 
         If cond t f ->
-            eval_ ctx cond
+            cond
+                |> eval_ ctx
                 |> Result.andThen
                     (\( cond_, _ ) ->
                         if equal (Sybl NIL) cond_ then
@@ -141,6 +114,13 @@ evalPair ctx fst snd =
                             eval_ ctx t
                     )
 
+        Cond branch else_ ->
+            evalCond ctx branch else_
+
+        Pair (Lambda args body) _ ->
+            apply ctx args body snd
+                |> Result.map (Tuple.mapSecond (always ctx))
+
         _ ->
             Utils.resultZip (eval_ ctx fst) (eval_ ctx snd)
                 |> Result.map
@@ -148,7 +128,7 @@ evalPair ctx fst snd =
                         ( Pair x y
                         , Dict.merge
                             (\key a -> Dict.insert key a)
-                            (\key a _ -> Dict.insert key a)
+                            (\key _ b -> Dict.insert key b)
                             (\key b -> Dict.insert key b)
                             ctx1
                             ctx2
@@ -165,7 +145,7 @@ bind ctx key val =
                 |> Ok
 
         _ ->
-            Err "err"
+            Err "binding error"
 
 
 apply : Ctx -> AST -> AST -> AST -> Result String ( AST, Ctx )
@@ -176,6 +156,15 @@ apply ctx args body vals =
 
         valsList =
             toList vals
+                |> List.map (eval_ ctx)
+                |> List.foldr
+                    (\x acc ->
+                        x
+                            |> Result.map Tuple.first
+                            |> Result.andThen (\v -> Result.map ((::) v) acc)
+                    )
+                    (Ok [])
+                |> Result.withDefault []
     in
     if List.length argsList == List.length valsList then
         List.map2 Tuple.pair argsList valsList
@@ -186,32 +175,109 @@ apply ctx args body vals =
                         acc
                 )
                 (Ok ctx)
-            |> Result.andThen
-                (\c ->
-                    eval_ c body
-                )
+            |> Result.andThen (\c -> eval_ c body)
 
     else
         Err "Error: lambda"
 
 
-let_ : Ctx -> AST -> Result String Ctx
-let_ ctx vars =
-    let
-        key =
-            car_ vars |> Maybe.andThen car_
-
-        val =
-            car_ vars |> Maybe.andThen cdr_ |> Maybe.andThen car_
-    in
-    case ( key, val ) of
-        ( Just (Sybl (Label k)), Just v ) ->
-            eval_ ctx v
-                |> Result.map
-                    (\( v_, _ ) -> Dict.insert k v_ ctx)
+define : Ctx -> AST -> AST -> AST -> Result String ( AST, Ctx )
+define ctx name args body =
+    case name of
+        Sybl (Label name_) ->
+            Ok <|
+                ( Sybl NIL
+                , Dict.insert
+                    name_
+                    (Lambda args body)
+                    ctx
+                )
 
         _ ->
-            Err "err"
+            Err "Syntax Error"
+
+
+let_ : Ctx -> AST -> Result String Ctx
+let_ ctx vars =
+    case vars of
+        Pair head tail ->
+            let
+                key =
+                    car_ head
+
+                val =
+                    cdr_ head |> Maybe.andThen car_
+            in
+            case ( key, val ) of
+                ( Just (Sybl (Label k)), Just v ) ->
+                    eval_ ctx v
+                        |> Result.map
+                            (\( v_, _ ) -> Dict.insert k v_ ctx)
+                        |> Result.andThen (\c -> let_ c tail)
+
+                _ ->
+                    Err "LET: Syntax Error"
+
+        Sybl NIL ->
+            Ok ctx
+
+        _ ->
+            Err "LET: Syntax Error"
+
+
+letEval : Ctx -> List AST -> Result String ( AST, Ctx )
+letEval ctx ast =
+    ast
+        |> List.foldl
+            (\ast_ acc ->
+                case acc of
+                    Ok ( _, _ ) ->
+                        eval_ ctx ast_
+
+                    Err err ->
+                        Err err
+            )
+            (Ok ( Sybl NIL, ctx ))
+
+
+evalCond : Ctx -> List AST -> AST -> Result String ( AST, Ctx )
+evalCond ctx branch else_ =
+    branch
+        |> List.foldr
+            (\x acc ->
+                acc
+                    |> Result.andThen
+                        (\y ->
+                            case ( car_ x, cdr_ x |> Maybe.andThen car_ ) of
+                                ( Just head, Just tail ) ->
+                                    Ok <| If head tail y
+
+                                _ ->
+                                    Err "COND: Syntax error"
+                        )
+                    |> Result.map List.singleton
+                    |> Result.map list_
+            )
+            (Ok else_)
+        |> Result.andThen (eval_ ctx)
+
+
+specialForm : String -> Ctx -> AST -> Result String ( AST, Ctx )
+specialForm name ctx ast =
+    case name of
+        "OR" ->
+            or ctx ast
+
+        "AND" ->
+            and ctx ast
+
+        "QUOTE" ->
+            car_ ast
+                |> Result.fromMaybe "QUOTE: Error"
+                |> Result.map (\x -> ( x, ctx ))
+
+        _ ->
+            Err <| name ++ " is undefined"
 
 
 buildin : String -> AST -> Result String AST
@@ -246,6 +312,21 @@ buildin name args =
 
         "/" ->
             div args
+
+        "MOD" ->
+            mod args
+
+        "<" ->
+            compOperation (<) args
+
+        ">" ->
+            compOperation (>) args
+
+        "<=" ->
+            compOperation (<=) args
+
+        ">=" ->
+            compOperation (>=) args
 
         _ ->
             Err (name ++ " is not found")
@@ -298,10 +379,10 @@ eq args =
                         Sybl NIL
 
             _ ->
-                Err "err"
+                Err "EQ: Error"
 
     else
-        Err "err"
+        Err "EQ: Error"
 
 
 not : AST -> Result String AST
@@ -329,19 +410,198 @@ list args =
 
 add : AST -> Result String AST
 add args =
-    Debug.todo "impl add"
+    case args of
+        Pair (Sybl (Num a)) tail ->
+            add tail
+                |> Result.andThen
+                    (\x ->
+                        case x of
+                            Sybl (Num x_) ->
+                                Ok <| a + x_
+
+                            _ ->
+                                Err "ADD: Not Number"
+                    )
+                |> Result.map (Sybl << Num)
+
+        Sybl NIL ->
+            Ok (Sybl <| Num 0)
+
+        _ ->
+            Err "ADD: Syntax Error"
 
 
 mul : AST -> Result String AST
 mul args =
-    Debug.todo "impl mul"
+    case args of
+        Pair (Sybl (Num a)) tail ->
+            mul tail
+                |> Result.andThen
+                    (\x ->
+                        case x of
+                            Sybl (Num x_) ->
+                                Ok <| a * x_
+
+                            _ ->
+                                Err ""
+                    )
+                |> Result.map (Sybl << Num)
+
+        Sybl NIL ->
+            Ok (Sybl <| Num 1)
+
+        _ ->
+            Err ""
 
 
 sub : AST -> Result String AST
 sub args =
-    Debug.todo "impl sub"
+    let
+        helper : AST -> AST -> Result String AST
+        helper init v =
+            case init of
+                Sybl (Num a) ->
+                    case v of
+                        Pair (Sybl (Num b)) tail ->
+                            helper (Sybl <| Num (a - b)) tail
+
+                        Sybl NIL ->
+                            Ok (Sybl <| Num a)
+
+                        _ ->
+                            Err "SUB: Error"
+
+                _ ->
+                    Err "SUB: Error"
+    in
+    case args of
+        Pair (Sybl (Num a)) (Sybl NIL) ->
+            Ok (Sybl <| Num (-1 * a))
+
+        Pair (Sybl (Num a)) tail ->
+            helper (Sybl <| Num a) tail
+
+        _ ->
+            Err "SUB: Error"
 
 
 div : AST -> Result String AST
 div args =
-    Debug.todo "impl div"
+    let
+        helper : AST -> AST -> Result String AST
+        helper init v =
+            case init of
+                Sybl (Num a) ->
+                    case v of
+                        Pair (Sybl (Num b)) tail ->
+                            helper (Sybl <| Num (a / b)) tail
+
+                        Sybl NIL ->
+                            Ok (Sybl <| Num a)
+
+                        _ ->
+                            Err "DIV: Error"
+
+                _ ->
+                    Err "DIV: Error"
+    in
+    case args of
+        Pair (Sybl (Num a)) (Sybl NIL) ->
+            Ok (Sybl <| Num (1 / a))
+
+        Pair (Sybl (Num a)) tail ->
+            helper (Sybl <| Num a) tail
+
+        _ ->
+            Err "DIV: Error"
+
+
+mod : AST -> Result String AST
+mod args =
+    case ( car_ args, cdr_ args |> Maybe.andThen car_ ) of
+        ( Just (Sybl (Num a)), Just (Sybl (Num b)) ) ->
+            Ok (Sybl <| Num <| toFloat (modBy (floor b) (floor a)))
+
+        _ ->
+            Err "MOD: Error"
+
+
+compOperation : (Float -> Float -> Bool) -> AST -> Result String AST
+compOperation compFunc args =
+    let
+        helper init args_ =
+            case init of
+                Sybl (Num a) ->
+                    case args_ of
+                        Pair (Sybl (Num b)) tail ->
+                            if compFunc a b then
+                                helper (Sybl (Num b)) tail
+
+                            else
+                                Ok <| Sybl NIL
+
+                        Sybl NIL ->
+                            Ok <| Sybl T
+
+                        _ ->
+                            Err ""
+
+                _ ->
+                    Err ""
+    in
+    case args of
+        Pair (Sybl (Num a)) tail ->
+            helper (Sybl (Num a)) tail
+
+        _ ->
+            Err ""
+
+
+or : Ctx -> AST -> Result String ( AST, Ctx )
+or ctx args =
+    case args of
+        Pair head tail ->
+            eval_ ctx head
+                |> Result.andThen
+                    (\( v, ctx_ ) ->
+                        if equal v (Sybl NIL) then
+                            or ctx_ tail
+
+                        else
+                            Ok ( v, ctx_ )
+                    )
+
+        Sybl NIL ->
+            Ok ( Sybl NIL, ctx )
+
+        _ ->
+            Err ""
+
+
+and : Ctx -> AST -> Result String ( AST, Ctx )
+and ctx args =
+    let
+        helper c init val =
+            if equal init (Sybl NIL) then
+                Ok ( Sybl NIL, c )
+
+            else
+                case val of
+                    Pair head tail ->
+                        eval_ c head
+                            |> Result.andThen
+                                (\( v, c_ ) ->
+                                    if equal v (Sybl NIL) then
+                                        Ok ( Sybl NIL, c_ )
+
+                                    else
+                                        helper c_ v tail
+                                )
+
+                    Sybl NIL ->
+                        Ok ( init, c )
+
+                    _ ->
+                        Err ""
+    in
+    helper ctx (Sybl T) args
