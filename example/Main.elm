@@ -1,6 +1,6 @@
 port module Main exposing (..)
 
-import Dict exposing (Dict)
+import Dict
 import Parser
 import Platform exposing (worker)
 import Ulmus
