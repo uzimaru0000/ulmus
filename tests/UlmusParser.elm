@@ -356,7 +356,7 @@ program : String
 program =
     """
 (define fact (x)
-    (if (< x 1)
+    (if (<= x 1)
         x
         (* x (fact (- x 1)))
     )
@@ -381,7 +381,7 @@ testFactProgram =
                             (list_
                                 [ If
                                     (list_
-                                        [ Sybl <| Label "<"
+                                        [ Sybl <| Label "<="
                                         , Sybl <| Label "x"
                                         , Sybl <| Num 1
                                         ]

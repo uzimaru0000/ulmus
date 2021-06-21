@@ -10,24 +10,24 @@ type alias Ctx =
     Dict String AST
 
 
-eval : AST -> Result String AST
-eval e =
-    evalAll buildIn
+eval : Ctx -> AST -> Result String AST
+eval ctx e =
+    evalAll ctx buildIn
         |> Result.map Tuple.second
-        |> Result.andThen (\ctx -> eval_ ctx e)
+        |> Result.andThen (\ctx_ -> eval_ ctx_ e)
         |> Result.map Tuple.first
 
 
-evalAll : List AST -> Result String ( AST, Ctx )
-evalAll e =
+evalAll : Ctx -> List AST -> Result String ( AST, Ctx )
+evalAll ctx e =
     e
         |> List.foldl
             (\x acc ->
                 acc
                     |> Result.map Tuple.second
-                    |> Result.andThen (\ctx -> eval_ ctx x)
+                    |> Result.andThen (\ctx_ -> eval_ ctx_ x)
             )
-            (Ok ( Sybl NIL, Dict.fromList [] ))
+            (Ok ( Sybl NIL, ctx ))
 
 
 eval_ : Ctx -> AST -> Result String ( AST, Ctx )
@@ -116,6 +116,10 @@ evalPair ctx fst snd =
 
         Cond branch else_ ->
             evalCond ctx branch else_
+
+        Pair (Lambda args body) _ ->
+            apply ctx args body snd
+                |> Result.map (Tuple.mapSecond (always ctx))
 
         _ ->
             Utils.resultZip (eval_ ctx fst) (eval_ ctx snd)

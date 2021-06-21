@@ -93,7 +93,7 @@ labelAtom =
         |= (Parser.getChompedString <|
                 Parser.succeed ()
                     |. Parser.chompIf (\c -> List.all ((/=) c) [ '(', ')', '\'' ])
-                    |. Parser.chompWhile (\c -> Char.isAlpha c || c == '_')
+                    |. Parser.chompWhile (\c -> Char.isAlpha c || List.any ((==) c) [ '+', '-', '*', '/', '<', '>', '=' ])
            )
 
 

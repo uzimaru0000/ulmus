@@ -1,9 +1,15 @@
 module UlmusTest exposing (..)
 
+import Dict exposing (Dict)
 import Expect
 import Test exposing (..)
 import Ulmus exposing (..)
 import Ulmus.AST exposing (..)
+
+
+emptyCtx : Ctx
+emptyCtx =
+    Dict.fromList []
 
 
 testShow : Test
@@ -144,32 +150,32 @@ testEval =
         [ test "()" <|
             \_ ->
                 Expect.equal
-                    (eval (Sybl NIL))
+                    (eval emptyCtx (Sybl NIL))
                     (Ok <| Sybl NIL)
         , test "t" <|
             \_ ->
                 Expect.equal
-                    (eval (Sybl T))
+                    (eval emptyCtx (Sybl T))
                     (Ok <| Sybl T)
         , test "1" <|
             \_ ->
                 Expect.equal
-                    (eval (Sybl <| Num 1))
+                    (eval emptyCtx (Sybl <| Num 1))
                     (Ok <| Sybl <| Num 1)
         , test "str" <|
             \_ ->
                 Expect.equal
-                    (eval (Sybl <| Str "a"))
+                    (eval emptyCtx (Sybl <| Str "a"))
                     (Ok <| Sybl <| Str "a")
         , test "'(T . NIL)" <|
             \_ ->
                 Expect.equal
-                    (eval (Quote <| Pair (Sybl T) (Sybl NIL)))
+                    (eval emptyCtx (Quote <| Pair (Sybl T) (Sybl NIL)))
                     (Ok <| Pair (Sybl T) (Sybl NIL))
         , test "(quote (+ 1 2)) -> (+ 1 2)" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "quote"
                             , list_
@@ -189,7 +195,7 @@ testEval =
         , test "(lambda (x) (x))" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         Lambda
                             (list_ [ Sybl <| Label "x" ])
                             (list_ [ Sybl <| Label "x" ])
@@ -202,7 +208,7 @@ testEval =
         , test "(cons 1 2) -> (1 . 2)" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "cons"
                             , Sybl <| Num 1
@@ -213,7 +219,7 @@ testEval =
         , test "(car (cons 1 2)) -> 1" <|
             \_ ->
                 Expect.equal
-                    (eval
+                    (eval emptyCtx
                         (list_
                             [ Sybl <| Label "car"
                             , list_
@@ -228,7 +234,7 @@ testEval =
         , test "(cdr (cons 1 2)) -> 2" <|
             \_ ->
                 Expect.equal
-                    (eval
+                    (eval emptyCtx
                         (Pair
                             (Sybl <| Label "cdr")
                             (Pair
@@ -250,7 +256,7 @@ testEval =
         , test "(car '(1 2 3)) -> 1" <|
             \_ ->
                 Expect.equal
-                    (eval
+                    (eval emptyCtx
                         (list_
                             [ Sybl <| Label "car"
                             , list_
@@ -265,7 +271,7 @@ testEval =
         , test "(cdr '(1 2 3)) -> (2 3)" <|
             \_ ->
                 Expect.equal
-                    (eval
+                    (eval emptyCtx
                         (list_
                             [ Sybl <| Label "cdr"
                             , list_
@@ -286,7 +292,7 @@ testEval =
         , test "(cons 1 2 3) -> Err" <|
             \_ ->
                 Expect.err
-                    (eval
+                    (eval emptyCtx
                         (list_
                             [ Sybl <| Label "cons"
                             , Sybl <| Num 1
@@ -298,7 +304,7 @@ testEval =
         , test "(eq 1 1) -> T" <|
             \_ ->
                 Expect.equal
-                    (eval
+                    (eval emptyCtx
                         (list_
                             [ Sybl <| Label "eq"
                             , Sybl <| Num 1
@@ -310,7 +316,7 @@ testEval =
         , test "(eq 1 2) -> NIL" <|
             \_ ->
                 Expect.equal
-                    (eval
+                    (eval emptyCtx
                         (list_
                             [ Sybl <| Label "eq"
                             , Sybl <| Num 1
@@ -322,7 +328,7 @@ testEval =
         , test "(eq 1 2 3) -> Err" <|
             \_ ->
                 Expect.err
-                    (eval
+                    (eval emptyCtx
                         (list_
                             [ Sybl <| Label "eq"
                             , Sybl <| Num 1
@@ -340,7 +346,7 @@ complex =
         [ test "(car (cdr (list 10 20 30))) -> 20" <|
             \_ ->
                 Expect.equal
-                    (eval
+                    (eval emptyCtx
                         (list_
                             [ Sybl <| Label "car"
                             , list_
@@ -358,7 +364,7 @@ complex =
         , test "((lambda (x) (x)) 10) -> 10" <|
             \_ ->
                 Expect.equal
-                    (eval
+                    (eval emptyCtx
                         (list_
                             [ Lambda
                                 (list_ [ Sybl <| Label "x" ])
@@ -371,7 +377,7 @@ complex =
         , test "((lambda (x) (car (cdr x))) '(abc def ghi)) -> \"def\"" <|
             \_ ->
                 Expect.equal
-                    (eval
+                    (eval emptyCtx
                         (list_
                             [ Lambda
                                 (list_ [ Sybl <| Label "x" ])
@@ -395,7 +401,7 @@ complex =
         , test "((lambda (f x y) (f x (f y '()))) 'cons '10 '20) -> (10 20)" <|
             \_ ->
                 Expect.equal
-                    (eval
+                    (eval emptyCtx
                         (list_
                             [ Lambda
                                 (list_
@@ -436,7 +442,7 @@ testLet =
         [ test "(let ((x 1)) x) -> 1" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Let
                                 (list_
@@ -453,7 +459,7 @@ testLet =
         , test "(let ((x 2)) (let ((y 3)) (cons x y))) -> (2 . 3)" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Let
                                 (list_
@@ -486,7 +492,7 @@ testLet =
         , test "変数２個" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Let
                                 (list_
@@ -532,7 +538,7 @@ testLet =
                             ]
                 in
                 Expect.equal
-                    (eval e)
+                    (eval emptyCtx e)
                     (Ok <| Pair (Sybl <| Num 1) (Sybl <| Num 10))
         , test "レキシカルスコープ" <|
             \_ ->
@@ -567,7 +573,7 @@ testLet =
                             ]
                 in
                 Expect.equal
-                    (eval e)
+                    (eval emptyCtx e)
                     (Ok <| Pair (Sybl <| Num 10) (Sybl <| Num 10))
         ]
 
@@ -578,7 +584,7 @@ testIf =
         [ test "(if (eq 1 2) (1) (2)) -> " <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ If
                                 (list_
@@ -601,7 +607,7 @@ testAdd =
         [ test "(+ 1 2) -> 3" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "+"
                             , Sybl <| Num 1
@@ -612,7 +618,7 @@ testAdd =
         , test "(+ 1 2 3 4 5) -> 15" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "+"
                             , Sybl <| Num 1
@@ -626,7 +632,7 @@ testAdd =
         , test "(+ 1) -> 1" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "+"
                             , Sybl <| Num 1
@@ -636,7 +642,7 @@ testAdd =
         , test "(+) -> 0" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "+"
                             ]
@@ -651,7 +657,7 @@ testMul =
         [ test "(* 1 2) -> 2" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "*"
                             , Sybl <| Num 1
@@ -662,7 +668,7 @@ testMul =
         , test "(* 1 2 3 4 5) -> 120" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "*"
                             , Sybl <| Num 1
@@ -676,7 +682,7 @@ testMul =
         , test "(* 1) -> 1" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "*"
                             , Sybl <| Num 1
@@ -686,7 +692,7 @@ testMul =
         , test "(*) -> 1" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "*"
                             ]
@@ -701,7 +707,7 @@ testSub =
         [ test "(- 1 2) -> -1" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "-"
                             , Sybl <| Num 1
@@ -712,7 +718,7 @@ testSub =
         , test "(- 1 2 3 4 5) -> -13" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "-"
                             , Sybl <| Num 1
@@ -726,7 +732,7 @@ testSub =
         , test "(- 1) -> -1" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "-"
                             , Sybl <| Num 1
@@ -736,7 +742,7 @@ testSub =
         , test "(-) -> err" <|
             \_ ->
                 Expect.err
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "-"
                             ]
@@ -750,7 +756,7 @@ testDiv =
         [ test "(/ 1 2) -> 0.5" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "/"
                             , Sybl <| Num 1
@@ -761,7 +767,7 @@ testDiv =
         , test "(/ 1 2 3 4 5) -> 0.008333333" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "/"
                             , Sybl <| Num 1
@@ -775,7 +781,7 @@ testDiv =
         , test "(/ 2) -> 0.5" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "/"
                             , Sybl <| Num 2
@@ -785,7 +791,7 @@ testDiv =
         , test "(/) -> err" <|
             \_ ->
                 Expect.err
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "/"
                             ]
@@ -799,7 +805,7 @@ testMod =
         [ test "(mod 1 2) -> 1" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "mod"
                             , Sybl <| Num 1
@@ -810,7 +816,7 @@ testMod =
         , test "(mod 15 3) -> 0" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "mod"
                             , Sybl <| Num 15
@@ -821,7 +827,7 @@ testMod =
         , test "(mod 11 5) -> 1" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "mod"
                             , Sybl <| Num 11
@@ -838,7 +844,7 @@ testComp =
         [ test "(< 1 2) -> T" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "<"
                             , Sybl <| Num 1
@@ -849,7 +855,7 @@ testComp =
         , test "(< 1 2 3) -> T" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "<"
                             , Sybl <| Num 1
@@ -861,7 +867,7 @@ testComp =
         , test "(< 1 1) -> NIL" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "<"
                             , Sybl <| Num 1
@@ -872,14 +878,14 @@ testComp =
         , test "(<) -> Err" <|
             \_ ->
                 Expect.err
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "<" ]
                     )
         , test "(> 1 2) -> NIL" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label ">"
                             , Sybl <| Num 1
@@ -890,7 +896,7 @@ testComp =
         , test "(> 1 2 3) -> NIL" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label ">"
                             , Sybl <| Num 1
@@ -902,7 +908,7 @@ testComp =
         , test "(> 1 1) -> NIL" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label ">"
                             , Sybl <| Num 1
@@ -913,14 +919,14 @@ testComp =
         , test "(>) -> Err" <|
             \_ ->
                 Expect.err
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label ">" ]
                     )
         , test "(<= 1 2) -> T" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "<="
                             , Sybl <| Num 1
@@ -931,7 +937,7 @@ testComp =
         , test "(<= 1 2 3) -> T" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "<="
                             , Sybl <| Num 1
@@ -943,7 +949,7 @@ testComp =
         , test "(<= 1 1) -> T" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "<="
                             , Sybl <| Num 1
@@ -954,14 +960,14 @@ testComp =
         , test "(<=) -> Err" <|
             \_ ->
                 Expect.err
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "<=" ]
                     )
         , test "(>= 1 2) -> NIL" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label ">="
                             , Sybl <| Num 1
@@ -972,7 +978,7 @@ testComp =
         , test "(>= 1 2 3) -> NIL" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label ">="
                             , Sybl <| Num 1
@@ -984,7 +990,7 @@ testComp =
         , test "(>= 1 1) -> T" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label ">="
                             , Sybl <| Num 1
@@ -995,7 +1001,7 @@ testComp =
         , test "(>=) -> Err" <|
             \_ ->
                 Expect.err
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label ">=" ]
                     )
@@ -1051,17 +1057,17 @@ testRecursive =
         [ test "fact 1 = 1" <|
             \_ ->
                 Expect.equal
-                    (eval <| fact 1)
+                    (eval emptyCtx <| fact 1)
                     (Ok (Sybl <| Num 1))
         , test "fact 2 = 2" <|
             \_ ->
                 Expect.equal
-                    (eval <| fact 2)
+                    (eval emptyCtx <| fact 2)
                     (Ok (Sybl <| Num 2))
         , test "fact 3 = 6" <|
             \_ ->
                 Expect.equal
-                    (eval <| fact 3)
+                    (eval emptyCtx <| fact 3)
                     (Ok (Sybl <| Num 6))
         ]
 
@@ -1072,7 +1078,7 @@ testLogicFunc =
         [ test "(or 1 2) -> 2" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "or"
                             , Sybl <| Num 1
@@ -1083,7 +1089,7 @@ testLogicFunc =
         , test "(or) -> NIL" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "or" ]
                     )
@@ -1091,7 +1097,7 @@ testLogicFunc =
         , test "(or NIL (+ 1 2)) -> 3" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "or"
                             , Sybl NIL
@@ -1106,7 +1112,7 @@ testLogicFunc =
         , test "(or T (hoge 1 2)) -> T" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "or"
                             , Sybl T
@@ -1121,7 +1127,7 @@ testLogicFunc =
         , test "(and 1 NIL 2) -> NIL" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "and"
                             , Sybl <| Num 1
@@ -1133,7 +1139,7 @@ testLogicFunc =
         , test "(and 1 2 3) -> 3" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "and"
                             , Sybl <| Num 1
@@ -1145,7 +1151,7 @@ testLogicFunc =
         , test "(and T (+ 1 2)) -> 3" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "and"
                             , Sybl T
@@ -1160,7 +1166,7 @@ testLogicFunc =
         , test "(and NIL (hoge 1 2)) -> 3" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "and"
                             , Sybl NIL
@@ -1175,7 +1181,7 @@ testLogicFunc =
         , test "(and) -> T" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "and" ]
                     )
@@ -1189,7 +1195,7 @@ testDefine =
         [ test "define id func" <|
             \_ ->
                 Expect.equal
-                    (evalAll
+                    (evalAll emptyCtx
                         [ Define
                             (Sybl <| Label "id")
                             (list_
@@ -1208,7 +1214,7 @@ testDefine =
         , test "define fact func" <|
             \_ ->
                 Expect.equal
-                    (evalAll
+                    (evalAll emptyCtx
                         [ Define
                             (Sybl <| Label "fact")
                             (list_
@@ -1255,7 +1261,7 @@ testCond =
         [ test "basic" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Cond
                                 [ list_

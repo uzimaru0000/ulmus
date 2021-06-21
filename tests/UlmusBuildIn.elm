@@ -1,9 +1,15 @@
 module UlmusBuildIn exposing (..)
 
+import Dict
 import Expect
 import Test exposing (..)
 import Ulmus exposing (..)
 import Ulmus.AST exposing (..)
+
+
+emptyCtx : Ctx
+emptyCtx =
+    Dict.fromList []
 
 
 testFold : Test
@@ -12,7 +18,7 @@ testFold =
         [ test "(fold '+ 0 (1 2 3 4)) -> 10" <|
             \_ ->
                 Expect.equal
-                    (eval <|
+                    (eval emptyCtx <|
                         list_
                             [ Sybl <| Label "fold"
                             , Quote (Sybl <| Label "+")
