@@ -1,9 +1,26 @@
-module Ulmus.Parser exposing (..)
+module Ulmus.Parser exposing
+    ( atom
+    , list
+    , parser
+    , sExp
+    )
+
+{-| The parser definition of the program
+
+@docs atom
+@docs list
+@docs parser
+@docs sExp
+
+-}
 
 import Parser exposing ((|.), (|=), Parser, oneOf)
 import Ulmus.AST exposing (..)
+import Utils exposing (car_, cdr_)
 
 
+{-| parser
+-}
 parser : Parser (List AST)
 parser =
     Parser.succeed identity
@@ -21,6 +38,8 @@ parser =
             )
 
 
+{-| sExp
+-}
 sExp : Parser AST
 sExp =
     Parser.oneOf
@@ -35,6 +54,8 @@ sExp =
         ]
 
 
+{-| atom
+-}
 atom : Parser Atom
 atom =
     Parser.oneOf
@@ -112,6 +133,8 @@ pair =
         ]
 
 
+{-| list
+-}
 list : Parser AST
 list =
     Parser.succeed identity

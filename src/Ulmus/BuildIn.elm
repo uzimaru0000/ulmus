@@ -1,8 +1,17 @@
-module Ulmus.BuildIn exposing (..)
+module Ulmus.BuildIn exposing (buildIn)
+
+{-| BuildIn function
+
+@docs buildIn
+
+-}
 
 import Ulmus.AST exposing (..)
+import Utils exposing (list_)
 
 
+{-| buildIn function
+-}
 buildIn : List AST
 buildIn =
     [ fold

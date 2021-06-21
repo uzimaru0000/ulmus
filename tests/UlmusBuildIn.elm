@@ -5,6 +5,7 @@ import Expect
 import Test exposing (..)
 import Ulmus exposing (..)
 import Ulmus.AST exposing (..)
+import Utils exposing (..)
 
 
 emptyCtx : Ctx

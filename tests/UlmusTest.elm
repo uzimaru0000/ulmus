@@ -1,10 +1,11 @@
 module UlmusTest exposing (..)
 
-import Dict exposing (Dict)
+import Dict
 import Expect
 import Test exposing (..)
 import Ulmus exposing (..)
 import Ulmus.AST exposing (..)
+import Utils exposing (len_, list_)
 
 
 emptyCtx : Ctx
@@ -118,29 +119,6 @@ testListLen =
                         |> len_
                     )
                     0
-        ]
-
-
-testBuildIn : Test
-testBuildIn =
-    describe "build in"
-        [ test "cons" <|
-            \_ ->
-                Expect.equal
-                    (cons <|
-                        list_
-                            [ Sybl <| Num 1
-                            , Sybl <| Num 2
-                            ]
-                    )
-                    (Ok <|
-                        Pair (Sybl <| Num 1) (Sybl <| Num 2)
-                    )
-        , test "car" <|
-            \_ ->
-                Expect.equal
-                    (car <| list_ [ Pair (Sybl <| Num 1) (Sybl <| Num 2) ])
-                    (Ok (Sybl <| Num 1))
         ]
 
 

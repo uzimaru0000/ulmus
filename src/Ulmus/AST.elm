@@ -1,6 +1,22 @@
-module Ulmus.AST exposing (..)
+module Ulmus.AST exposing
+    ( AST(..)
+    , Atom(..)
+    , equal
+    , show
+    )
+
+{-| The AST definition of the program
+
+@docs AST
+@docs Atom
+@docs equal
+@docs show
+
+-}
 
 
+{-| AST
+-}
 type AST
     = Sybl Atom
     | Quote AST
@@ -12,6 +28,8 @@ type AST
     | Cond (List AST) AST
 
 
+{-| Atom
+-}
 type Atom
     = NIL
     | T
@@ -20,6 +38,8 @@ type Atom
     | Label String
 
 
+{-| show
+-}
 show : AST -> String
 show cell =
     case cell of
@@ -60,56 +80,8 @@ show cell =
             "cond " ++ (List.map show branch |> String.join " ") ++ show else_
 
 
-car_ : AST -> Maybe AST
-car_ a =
-    case a of
-        Pair f _ ->
-            Just f
-
-        _ ->
-            Nothing
-
-
-cdr_ : AST -> Maybe AST
-cdr_ a =
-    case a of
-        Pair _ s ->
-            Just s
-
-        _ ->
-            Nothing
-
-
-len_ : AST -> Int
-len_ ast =
-    case ast of
-        Pair _ s ->
-            1 + len_ s
-
-        Sybl NIL ->
-            0
-
-        _ ->
-            1
-
-
-list_ : List AST -> AST
-list_ =
-    List.foldr
-        (\x acc -> Pair x acc)
-        (Sybl NIL)
-
-
-toList : AST -> List AST
-toList ast =
-    case ast of
-        Pair f s ->
-            f :: toList s
-
-        _ ->
-            []
-
-
+{-| equal (Sybl NIL) (Sybl NIL) == True
+-}
 equal : AST -> AST -> Bool
 equal c1 c2 =
     case ( c1, c2 ) of

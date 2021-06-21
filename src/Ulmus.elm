@@ -1,15 +1,31 @@
-module Ulmus exposing (..)
+module Ulmus exposing
+    ( Ctx
+    , eval
+    , evalAll
+    )
+
+{-| Evaluation
+
+@docs Ctx
+@docs eval
+@docs evalAll
+
+-}
 
 import Dict exposing (Dict)
-import Ulmus.AST exposing (AST(..), Atom(..), car_, cdr_, equal, len_, list_, show, toList)
+import Ulmus.AST exposing (AST(..), Atom(..), equal, show)
 import Ulmus.BuildIn exposing (buildIn)
-import Utils
+import Utils exposing (car_, cdr_, len_, list_, toList)
 
 
+{-| Runtime Context
+-}
 type alias Ctx =
     Dict String AST
 
 
+{-| Evaluation Function
+-}
 eval : Ctx -> AST -> Result String AST
 eval ctx e =
     evalAll ctx buildIn
@@ -18,6 +34,8 @@ eval ctx e =
         |> Result.map Tuple.first
 
 
+{-| Evaluation Function with many S-expression
+-}
 evalAll : Ctx -> List AST -> Result String ( AST, Ctx )
 evalAll ctx e =
     e

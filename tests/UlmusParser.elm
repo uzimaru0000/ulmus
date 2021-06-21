@@ -6,6 +6,7 @@ import Test exposing (..)
 import Ulmus exposing (..)
 import Ulmus.AST exposing (..)
 import Ulmus.Parser exposing (..)
+import Utils exposing (..)
 
 
 testAtomParser : Test
