@@ -100,12 +100,7 @@ evalPair ctx fst snd =
 
         Let vars body ->
             let_ ctx vars
-                |> Result.andThen
-                    (\c ->
-                        body
-                            |> List.map (eval_ c)
-                            |> List.foldl (\x acc -> Result.andThen (always x) acc) (Ok ( Sybl NIL, c ))
-                    )
+                |> Result.andThen (\c -> letEval c body)
 
         If cond t f ->
             cond
@@ -224,6 +219,21 @@ let_ ctx vars =
 
         _ ->
             Err "LET: Syntax Error"
+
+
+letEval : Ctx -> List AST -> Result String ( AST, Ctx )
+letEval ctx ast =
+    ast
+        |> List.foldl
+            (\ast_ acc ->
+                case acc of
+                    Ok ( _, _ ) ->
+                        eval_ ctx ast_
+
+                    Err err ->
+                        Err err
+            )
+            (Ok ( Sybl NIL, ctx ))
 
 
 evalCond : Ctx -> List AST -> AST -> Result String ( AST, Ctx )
